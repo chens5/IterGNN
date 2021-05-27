@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch_geometric.nn import GCNConv as _GCNConv, GATConv as _GATConv
 from torch_geometric.nn.conv import GINConv as _GINConv
 from torch_geometric.nn import MessagePassing as _MessagePassing
+from torch_geometric.nn import SAGEConv as _SAGEConv
 
 from .classical_layers import cal_size_list, MLP
 from .gnn_aggregation import AggregationLayers
@@ -64,6 +65,7 @@ class MPNNMaxConv(MPNNConv):
         self.build_model(in_channel, out_channel, edge_channel,
                          homogeneous_flag, edge_embedding_layer_num,
                          update_layer_num)
+
 
 class PathConv(nn.Module):
     def __init__(self, in_channel, out_channel, edge_channel,
@@ -164,6 +166,13 @@ class GINConv(nn.Module):
     def forward(self, x, edge_index):
         return self.module(x, edge_index)
 
+class SAGEConv(nn.Module):
+    def __init__(self, in_channel, out_channel, homogeneous_flag=False):
+        super(SAGEConv, self).__init__()
+        self.module = _SAGEConv(in_channel, out_channel, bias = not homogeneous_flag)
+    def forward(self, x, edge_index):
+        return self.module(x, edge_index)
+
 class EpsGINConv(nn.Module):
     def __init__(self, in_channel, out_channel, homogeneous_flag=False):
         super(EpsGINConv, self).__init__()
@@ -193,7 +202,7 @@ class ClassicalGNNLayers(_GNNLayer):
 class GNNLayers(nn.Module):
     def __init__(self, layer_name, *args, **kwargs):
         super(GNNLayers, self).__init__()
-        if layer_name in ['GCNConv', 'GATConv', 'GINConv', 'EpsGINConv']:
+        if layer_name in ['GCNConv', 'GATConv', 'GINConv', 'EpsGINConv', 'SAGEConv']:
             self.module = ClassicalGNNLayers(layer_name=layer_name, *args, **kwargs)
         else:
             self.module = PathGNNLayers(layer_name=layer_name, *args, **kwargs)
@@ -295,6 +304,8 @@ def _test_layer(layer_generator):
     for _ in range(10):
         _one_test_case(layer_generator)
 
+def test_SAGE():
+    _test_layer(lambda **kwargs: GNNLayers(layer_name='SAGEConv', input_feat_flag=False,homogeneous_flag=False, **kwargs))
 def test_GCN():
     _test_layer(lambda **kwargs: GNNLayers(layer_name='GCNConv', input_feat_flag=False, homogeneous_flag=False,**kwargs))
 def test_GCN_homo():
@@ -366,5 +377,6 @@ def _main():
         print()
         print('====Running %s====='%k)
         v()
+        break
 if __name__ == '__main__':
     _main()

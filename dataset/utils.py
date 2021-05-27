@@ -1,11 +1,11 @@
 import torch, time, itertools
 import numpy as np
 import networkx as nx
-
+from torch_geometric.datasets import ModelNet
 from scipy.spatial import Delaunay
-
+import torch_geometric.transforms as T
 from torch_sparse import coalesce
-from torch_geometric.utils import erdos_renyi_graph
+from torch_geometric.utils import erdos_renyi_graph, barabasi_albert_graph
 from torch_geometric.nn import knn_graph, radius_graph
 
 def block_index(n, d, i):
@@ -25,6 +25,13 @@ def build_fully_connected_graph(N, device=None):
 '''
 edge index generator
 '''
+def gen_barabasi_index(node_num=100, edge_num=2, device=None, **kwargs):
+    device = device or getDevice()
+    if node_num > 4:
+        edge_num = np.random.randint(2,int(np.ceil(node_num/2))) 
+    edge_index = barabasi_albert_graph(node_num, edge_num)
+    return edge_index.to(device).type(torch.long), node_num
+
 def gen_random_index(node_num=100, sparsity=0.5, device=None, **kwargs):
     device = device or getDevice()
     edge_index = erdos_renyi_graph(node_num, 1-sparsity, directed=True)
@@ -103,7 +110,11 @@ def gen_grid_index(node_num, device=None, *args, **kwargs):
     edge_index = torch.cat([down_index, right_index], dim=-1)
     edge_index = torch.cat([edge_index, edge_index[[1,0]]],dim=-1)
     return edge_index, node_num*node_num
+
+#def gen_modelnet_index(node_num, device=None, *args, **kwargs):
+
 def gen_edge_index(index_generator='random', **kwargs):
+    #print(globals()['gen_%s_index'%index_generator](**kwargs))
     return globals()['gen_%s_index'%index_generator](**kwargs)
 
 #=============== Testing ===============
@@ -144,6 +155,7 @@ def _test_edge_index_generator(index_generator, device):
     start_time = time.time()
     graphs = [index_generator(node_num=node_num) for node_num in
               np.random.randint(min_node_num, max_node_num, num).tolist()]
+   # graphs = ModelNet(root='/tmp/faust', pre_transform=T.FaceToEdge())
     print('** It takes %.2f seconds to generate %d graphs'%(time.time()-start_time, num))
 
     # node number distribution
@@ -190,7 +202,10 @@ def _test_edge_index_generator(index_generator, device):
     fig = plt.figure()
     plt.hist(path_length_list, bins=50)
     plt.title(str(index_generator.__name__))
-    plt.show()
+    plt.savefig(str(index_generator))
+
+def test_ba_cpu():
+    _test_edge_index_generator(gen_barabasi_index, torch.device('cpu'))
 
 def test_random_cpu():
     _test_edge_index_generator(gen_random_index, torch.device('cpu'))
@@ -219,9 +234,11 @@ def test_tree_gpu():
 
 if __name__ == '__main__':
     objects = {k:v for k,v in globals().items() if k[:5] == 'test_'}
+   # ds = ModelNet(root='/tmp/faust', pre_transform=T.FaceToEdge())
+   # print(ds[0])
     for k,v in objects.items():
         print()
         print('====Running %s====='%k)
         v()
     plt.ioff()
-    plt.show()
+    plt.savefig('hello')

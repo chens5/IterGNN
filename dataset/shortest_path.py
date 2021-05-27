@@ -33,10 +33,10 @@ def _shortest_path_len(edge_index, edge_distance, src, tar):
 
     return length
 
-def _generate_sample(node_num=100, sparsity=0.5, k=8, dim=2, lobster_prob=(0.2,0.2),
+def _generate_sample(node_num=100, edge_num=2, sparsity=0.5, k=8, dim=2, lobster_prob=(0.2,0.2),
                      connect_prob=0.01, index_generator='random', device=None,
                      min_edge_distance=1., max_edge_distance=1., **kwargs):
-    edge_index, node_num = gen_edge_index(index_generator, node_num=node_num,
+    edge_index, node_num = gen_edge_index(index_generator, node_num=node_num,edge_num=edge_num,
                                           sparsity=sparsity, k=k, dim=dim,
                                           lobster_prob=lobster_prob,
                                           connect_prob=connect_prob,
@@ -57,7 +57,10 @@ class ShortestPathLenDataset(GraphDataset):
             raise IndexError
         min_num_node, num_num_node = self.other_kwargs['min_num_node'], self.other_kwargs['num_num_node']
         node_num = int(idx/self.size*num_num_node+min_num_node)
+       # num_edge = np.random.randint(2, node_num-1)
+       # print(num_edge)
         data = _generate_sample(node_num=node_num, **self.other_kwargs)
+
         while (data.y < 0):
             data = _generate_sample(node_num=node_num, **self.other_kwargs)
         return data
@@ -90,6 +93,8 @@ def _test_distance_dataset(index_generator, min_edge_distance, max_edge_distance
         dataset = dataset_generator(dim=2)
     elif index_generator == 'lobster':
         dataset = dataset_generator(lobster_prob=(0.2, 0.2))
+    elif index_generator == 'barabasi':
+        dataset = dataset_generator(edge_num=3)
     else:
         raise NotImplementedError('No index generator named %s can be tested'%index_generator)
     print('** It takes %.2f seconds to generate the dataset'%(time.time()-start_time))
@@ -102,6 +107,9 @@ def _test_distance_dataset(index_generator, min_edge_distance, max_edge_distance
     plt.title('%s_%s'%(index_generator, 'weighted' if min_edge_distance != max_edge_distance else 'unweighted'))
     plt.show()
 
+
+def test_barabasi_unweighted():
+    _test_distance_dataset('barabasi', 1., 1.)
 def test_random_unweighted():
     _test_distance_dataset('random', 1., 1.)
 def test_random_weighted():
